@@ -164,6 +164,11 @@ function SendStream (req, path, options) {
   if (!this._root && opts.from) {
     this.from(opts.from)
   }
+
+  // this can be an async function, as it will be awaited
+  this._preSetHeaders = typeof opts.preSetHeaders === 'function'
+    ? opts.preSetHeaders
+    : null
 }
 
 /**
@@ -603,7 +608,7 @@ SendStream.prototype.pipe = function pipe (res) {
  * @api public
  */
 
-SendStream.prototype.send = function send (path, stat) {
+SendStream.prototype.send = async function send (path, stat) {
   var len = stat.size
   var options = this.options
   var opts = {}
@@ -618,7 +623,9 @@ SendStream.prototype.send = function send (path, stat) {
     return
   }
 
-  debug('pipe "%s"', path)
+  if (this._preSetHeaders) {
+    await this._preSetHeaders(res, req, path, stat)
+  }
 
   // set header fields
   this.setHeader(path, stat)
